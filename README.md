@@ -13,11 +13,18 @@ The goal of this project is to demonstrate how a Large Language Model (LLM) can 
 ```text
 learning_ai_agents_note_assistant/
 │
-├── brain.py          # The AI "brain" - Configures the Gemini model, binds tools, and processes messages
-├── tools.py          # Defines tools (@tool) such as them_ghi_chu to append notes to todo.txt
-├── todo.txt          # File storing notes and tasks (auto-created when the tool executes)
-├── requirements.txt  # Project dependency specifications
-└── README.md         # Project documentation and guide
+├── brain.py              # The AI "brain" - Configures the Gemini model, binds tools, and processes messages
+├── settings.py           # Reads GOOGLE_API_KEY and GEMINI_MODEL from environment variables
+├── quota_errors.py       # Detects and formats Gemini quota/billing (402/429 RESOURCE_EXHAUSTED) errors
+├── tools.py              # Defines tools (@tool) such as them_ghi_chu to append notes to todo.txt
+├── todo.txt              # File storing notes and tasks (auto-created when the tool executes)
+├── requirements.txt      # Project runtime dependency specifications
+├── requirements-dev.txt  # Development and test dependency specifications (includes pytest)
+├── tests/                # Unit tests for settings, quota error detection, and brain entrypoint
+│   ├── test_settings.py
+│   ├── test_quota_errors.py
+│   └── test_brain.py
+└── README.md             # Project documentation and guide
 ```
 
 ---
@@ -90,6 +97,14 @@ For security, avoid hardcoding the API key directly in source files (`brain.py`)
 $env:GOOGLE_API_KEY = "your_gemini_api_key_here"
 ```
 
+Optionally, you can override the Gemini model name via `GEMINI_MODEL` (defaults to `gemini-3.8-flash` when unset or blank):
+
+```powershell
+$env:GEMINI_MODEL = "gemini-3.8-flash"
+```
+
+If `GOOGLE_API_KEY` is missing or blank, `brain.py` prints a setup hint to `stderr` and exits with code `2`.
+
 ---
 
 ## 🚀 Running the Project (Execution)
@@ -105,6 +120,28 @@ The model will analyze the prompt and output the structured tool call decision (
 ```python
 [{'name': 'them_ghi_chu', 'args': {'noi_dung': 'chiều nay đi siêu thị mua rau'}, 'id': '...'}]
 ```
+
+---
+
+## 🧪 Running Tests
+
+Install development dependencies and run the test suite from the repository root:
+
+```powershell
+py -m pip install -r requirements-dev.txt
+py -m pytest -q
+```
+
+All tests run offline and do not require `GOOGLE_API_KEY` to be set.
+
+---
+
+## 🩺 Troubleshooting
+
+### `402` / `429` `RESOURCE_EXHAUSTED` (Exit Code `3`)
+If `py brain.py` exits with code `3` and reports that Gemini API quota or prepaid credits are exhausted:
+- The Google Cloud / AI Studio project behind your `GOOGLE_API_KEY` has depleted its prepaid credits or rate quota.
+- **Fix**: Top up credits or manage billing at <https://ai.studio/projects> (see [Gemini API Billing Docs](https://ai.google.dev/gemini-api/docs/billing#prepay)), or set `$env:GOOGLE_API_KEY` to a key from a project with available quota.
 
 ---
 
