@@ -2,7 +2,7 @@ from collections.abc import Mapping
 import os
 import sys
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, ToolMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_google_genai.chat_models import ChatGoogleGenerativeAIError
 
@@ -52,8 +52,25 @@ def main(environ: Mapping[str, str] = os.environ) -> int:
             return EXIT_QUOTA_EXHAUSTED
         raise
 
-    # In quyết định gọi công cụ của Agent ra màn hình
+    # 5. Thực thi công cụ theo yêu cầu của AI
     print(phan_hoi.tool_calls)
+    for yeu_cau in phan_hoi.tool_calls:
+        if yeu_cau['name'] == 'them_ghi_chu':
+            # Chạy công cụ với các tham số AI đã trích xuất
+            ket_qua = them_ghi_chu.invoke(yeu_cau['args'])
+
+            # In kết quả trả về từ công cụ
+            print(f"Hệ thống báo: {ket_qua}")
+
+            # --- BƯỚC MỚI: HOÀN THIỆN VÒNG LẶP REACT ---
+            # Nối quyết định gọi công cụ và kết quả vào lịch sử tin nhắn
+            tin_nhan.append(phan_hoi) 
+            tin_nhan.append(ToolMessage(content=ket_qua, tool_call_id=yeu_cau['id']))
+            
+            # Yêu cầu AI đọc kết quả và giao tiếp lại với người dùng
+            phan_hoi_cuoi_cung = llm_kem_cong_cu.invoke(tin_nhan)
+            print("Trợ lý AI:", phan_hoi_cuoi_cung.content)
+
     return EXIT_SUCCESS
 
 

@@ -17,5 +17,14 @@ def read_api_key(environ: Mapping[str, str]) -> str:
 
 
 def read_model_name(environ: Mapping[str, str]) -> str:
+    """Retrieve the Gemini model name from environment variables with a fallback.
+    Reads the model name from the ``GEMINI_MODEL`` environment variable and strips
+    any surrounding whitespace. If the variable is unset, empty, or whitespace-only,
+    it falls back to ``DEFAULT_MODEL_NAME``.
+    Args:
+        environ: Environment variable mapping (such as :data:`os.environ`).
+    Returns:
+        The configured model name string, or the default model name ('gemini-3.8-flash').
+    """
     model_name = environ.get(MODEL_NAME_ENV_VAR, "").strip()
     return model_name or DEFAULT_MODEL_NAME
