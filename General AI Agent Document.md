@@ -151,3 +151,100 @@ Khi xây dựng các hệ thống AI, ranh giới giữa việc dùng công cụ
 * **Tool Calling:** LLM gọi **Code tĩnh** (Như người dùng máy tính bỏ túi).
 * **Multi-Agent:** LLM gọi **LLM khác** (Như Giám đốc giao việc cho Trưởng phòng). 
 > 💡 *Lưu ý: Trong LangChain, một "Agent Nhân viên" thường được bọc bên trong hình thức của một `@tool` để Agent Sếp dễ dàng nhận diện và gọi tên.*
+
+---
+
+## 6. Thực Hành Xây Dựng Hệ Thống Multi-Agent (Mô Hình Supervisor) 🏢
+
+Trong mô hình **Supervisor (Quản lý - Nhân viên)**, chúng ta thiết lập một Agent trung tâm (Router) đóng vai trò "Sếp" giao tiếp với người dùng. "Sếp" sẽ điều phối công việc cho các Agent "Nhân viên" có chuyên môn riêng.
+
+Dưới đây là cách chúng ta nâng cấp từ Single-Agent lên Multi-Agent:
+
+### Bước 1: Tạo "Nhân viên" Kiểm duyệt bằng AI (`tools.py`)
+Thay vì dùng code `if/else` tĩnh, chúng ta bọc một LLM hoàn toàn mới vào bên trong một Tool. "Nhân viên" này có System Prompt riêng để tự suy luận mức độ khẩn cấp của công việc.
+
+```python
+import os
+from langchain_core.tools import tool
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import SystemMessage, HumanMessage
+
+@tool
+def kiem_duyet_cong_viec(noi_dung: str) -> str:
+    """Kiểm duyệt và phân loại mức độ ưu tiên của công việc bằng AI."""
+    # 1. Khởi tạo LLM "Nhân viên" (Sử dụng model riêng biệt nếu cần)
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    llm_nhan_vien = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
+    
+    # 2. Cấp "Vai trò" (System Prompt) cho nhân viên
+    huong_dan = """Bạn là một Chuyên gia Đánh giá Rủi ro và Quản lý Thời gian.
+    Nhiệm vụ của bạn là đọc nội dung công việc và quyết định mức độ ưu tiên.
+    - Trả về "[Khẩn cấp] 🚨" nếu liên quan y tế, sức khỏe, ban đêm, quá gấp.
+    - Trả về "[Bình thường] 🟢" cho sinh hoạt thông thường.
+    Tuyệt đối chỉ trả về đúng 1 trong 2 nhãn trên."""
+
+    tin_nhan_cho_nhan_vien = [
+        SystemMessage(content=huong_dan),
+        HumanMessage(content=f"Nội dung công việc cần đánh giá: {noi_dung}")
+    ]
+
+    # 3. Nhân viên tự suy nghĩ và trả kết quả cho Sếp
+    phan_hoi = llm_nhan_vien.invoke(tin_nhan_cho_nhan_vien)
+    
+    # Xử lý bóc tách vỏ list (nếu có)
+    noi_dung_tra_loi = phan_hoi.content
+    if isinstance(noi_dung_tra_loi, list):
+        noi_dung_tra_loi = noi_dung_tra_loi[0]['text']
+
+    return noi_dung_tra_loi.strip()
+```
+
+### Bước 2: Nâng cấp "Sếp" (Router) và Vòng lặp Suy luận đa bước (`brain.py`)
+Để "Sếp" tuân thủ đúng quy trình (Kiểm duyệt trước -> Ghi file sau), chúng ta cần:
+1. Nạp **SystemMessage** quy định luật chơi cho Sếp.
+2. Thay đổi cấu trúc gọi công cụ thành vòng lặp `while phan_hoi.tool_calls` để Sếp có thể gọi nhiều Agent/Tool liên tiếp trong cùng một lượt chat.
+
+```python
+# ... (Phần khởi tạo LLM Sếp giữ nguyên) ...
+
+# 1. Nạp luật chơi cho Sếp
+huong_dan_cho_sep = """Bạn là một Quản lý ghi chú (Router Agent). 
+Quy trình BẮT BUỘC khi người dùng yêu cầu thêm ghi chú:
+1. Gọi 'kiem_duyet_cong_viec' để lấy nhãn phân loại.
+2. Gắn nhãn đó vào đầu nội dung công việc.
+3. Gọi 'them_ghi_chu' để lưu nội dung đã có nhãn vào sổ.
+Tuyệt đối không được tự ý ghi vào sổ mà chưa qua bước kiểm duyệt."""
+
+tin_nhan = [SystemMessage(content=huong_dan_cho_sep)]
+
+while True:
+    cau_hoi = input("\nBạn: ")
+    if cau_hoi.lower() == 'exit': break
+    
+    tin_nhan.append(HumanMessage(content=cau_hoi))
+    phan_hoi = llm_kem_cong_cu.invoke(tin_nhan)
+
+    # 2. Vòng lặp đa bước: Cho phép Sếp gọi nhiều công cụ liên tiếp
+    while phan_hoi.tool_calls:
+        for yeu_cau in phan_hoi.tool_calls:
+            ten_cong_cu = yeu_cau['name']
+            cong_cu_duoc_chon = danh_ba_cong_cu[ten_cong_cu]
+            
+            # Chạy công cụ (hoặc Agent nhân viên)
+            ket_qua = cong_cu_duoc_chon.invoke(yeu_cau['args'])
+            
+            # Lưu lại lịch sử
+            tin_nhan.append(phan_hoi) 
+            tin_nhan.append(ToolMessage(content=ket_qua, tool_call_id=yeu_cau['id']))
+                
+        # Gọi lại Sếp để Sếp quyết định bước tiếp theo (VD: Ghi sổ)
+        phan_hoi = llm_kem_cong_cu.invoke(tin_nhan)
+    
+    # 3. Trả lời người dùng sau khi chuỗi công việc hoàn tất
+    noi_dung_tra_loi = phan_hoi.content
+    if isinstance(noi_dung_tra_loi, list):
+        noi_dung_tra_loi = noi_dung_tra_loi[0]['text']
+        
+    print("Trợ lý AI:", noi_dung_tra_loi)
+    tin_nhan.append(phan_hoi)
+```
