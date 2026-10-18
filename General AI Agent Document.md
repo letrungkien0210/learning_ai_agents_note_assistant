@@ -130,3 +130,24 @@ while True:
         phan_hoi_cuoi_cung = llm_kem_cong_cu.invoke(tin_nhan)
         print("Trợ lý AI:", phan_hoi_cuoi_cung.content)
 ```
+
+---
+
+## 5. Phân Biệt Single-Agent (Tool Calling) và Multi-Agent ⚖️
+
+Khi xây dựng các hệ thống AI, ranh giới giữa việc dùng công cụ (Tool) và dùng tác tử (Agent) thường dễ gây nhầm lẫn do cách các thư viện lập trình đóng gói chúng. Dưới đây là cách phân biệt cốt lõi dựa trên "Bộ não" (LLM).
+
+### 5.1. Single-Agent với Tool Calling (Cơ chế cơ bản)
+* **Bản chất:** Hệ thống chỉ có **1 Bộ não duy nhất** (LLM Router) phải tự suy nghĩ và tự cầm các công cụ để làm việc.
+* **Tool (Công cụ) là gì?** Là các đoạn mã lập trình tĩnh, vô tri (như lệnh `if/else` hoặc lệnh mở file). Tool không có khả năng tự suy luận, chỉ nhận đầu vào và nhả đầu ra một cách máy móc.
+* **Ví dụ:** LLM nhận câu nói "Khuya nay mua thuốc hạ sốt ngay" -> Quyết định gọi hàm `kiem_duyet_cong_viec`. Hàm Python dùng lệnh `in` để tìm chữ "ngay", thấy khớp nên trả về nhãn `[Khẩn cấp] 🚨`. Nếu câu nói không có chữ "ngay", hàm sẽ máy móc đánh giá là bình thường.
+
+### 5.2. Hệ thống Multi-Agent (Kiến trúc nâng cao)
+* **Bản chất:** Hệ thống có **Nhiều Bộ não (LLMs)** phối hợp làm việc như một công ty.
+* **Agent (Tác tử) là gì?** Một Agent thực thụ phải bao gồm: `LLM độc lập` + `System Prompt riêng` (Ví dụ: "Bạn là chuyên gia y tế đánh giá mức độ rủi ro...").
+* **Ví dụ:** LLM Router (Sếp) nhận câu nói "Khuya nay đi mua thuốc hạ sốt". Sếp không gọi code tĩnh, mà giao việc cho Audit Agent (Nhân viên). LLM của nhân viên tự suy luận: *"Việc mua thuốc hạ sốt vào lúc nửa đêm là tình huống y tế nguy hiểm"* và tự động dán nhãn `[Khẩn cấp] 🚨` dù không hề có từ khóa "gấp" hay "ngay".
+
+### 🌟 Tóm lại
+* **Tool Calling:** LLM gọi **Code tĩnh** (Như người dùng máy tính bỏ túi).
+* **Multi-Agent:** LLM gọi **LLM khác** (Như Giám đốc giao việc cho Trưởng phòng). 
+> 💡 *Lưu ý: Trong LangChain, một "Agent Nhân viên" thường được bọc bên trong hình thức của một `@tool` để Agent Sếp dễ dàng nhận diện và gọi tên.*
