@@ -28,3 +28,14 @@ def doc_ghi_chu() -> str:
         return "Danh sách công việc đang trống."
     
     return noi_dung
+
+@tool
+def kiem_duyet_cong_viec(noi_dung: str) -> str:
+    """Kiểm duyệt và phân loại mức độ ưu tiên của công việc."""
+    noi_dung_lower = noi_dung.lower()
+
+    # Kiểm tra xem từ khóa có nằm trong nội dung không
+    if "gấp" in noi_dung_lower or "ngay" in noi_dung_lower or "chiều nay" in noi_dung_lower:
+        return "[Khẩn cấp] 🚨"
+    else:
+        return "[Bình thường] 🟢"
