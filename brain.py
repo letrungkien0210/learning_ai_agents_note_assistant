@@ -58,25 +58,41 @@ def main(environ: Mapping[str, str] = os.environ) -> int:
         "doc_ghi_chu": doc_ghi_chu
     }
 
-    # 5. Thực thi công cụ theo yêu cầu của AI
-    print(phan_hoi.tool_calls)
-    for yeu_cau in phan_hoi.tool_calls:
-        ten_cong_cu = yeu_cau['name']
-        
-        # Tra cứu trong danh bạ để lấy hàm công cụ ra
-        cong_cu_duoc_chon = danh_ba_cong_cu[ten_cong_cu];
+    # Tạo trí nhớ (danh sách rỗng) TRƯỚC khi bắt đầu vòng lặp
+    tin_nhan = []
+    print("Trợ lý AI đã sẵn sàng! 🤖 (Gõ 'Exit' để kết thúc)")
 
-        ket_qua = cong_cu_duoc_chon.invoke(yeu_cau['args']);
-        print(f"Hệ thống báo: {ket_qua}")
+    # Mở vòng lặp vô hạn
+    while True:
+        cau_hoi = input("\nBạn: ")
+    
+        if cau_hoi.lower() == 'Exit' or cau_hoi.lower() == 'exit':
+            print("Tạm biệt!")
+            break
 
-        # --- BƯỚC MỚI: HOÀN THIỆN VÒNG LẶP REACT ---
-        # Nối quyết định gọi công cụ và kết quả vào lịch sử tin nhắn
-        tin_nhan.append(phan_hoi) 
-        tin_nhan.append(ToolMessage(content=ket_qua, tool_call_id=yeu_cau['id']))
+        tin_nhan.append(HumanMessage(content=cau_hoi))
+
+        # --- PHẦN CODE CŨ ĐƯỢC THỤT LỀ VÀO TRONG ---
+        phan_hoi = llm_kem_cong_cu.invoke(tin_nhan)
+    
+        # 5. Thực thi công cụ theo yêu cầu của AI
+        for yeu_cau in phan_hoi.tool_calls:
+            ten_cong_cu = yeu_cau['name']
             
-        # Yêu cầu AI đọc kết quả và giao tiếp lại với người dùng
-        phan_hoi_cuoi_cung = llm_kem_cong_cu.invoke(tin_nhan)
-        print("Trợ lý AI:", phan_hoi_cuoi_cung.content)
+            # Tra cứu trong danh bạ để lấy hàm công cụ ra
+            cong_cu_duoc_chon = danh_ba_cong_cu[ten_cong_cu];
+
+            ket_qua = cong_cu_duoc_chon.invoke(yeu_cau['args']);
+            print(f"Hệ thống báo: {ket_qua}")
+
+            # --- BƯỚC MỚI: HOÀN THIỆN VÒNG LẶP REACT ---
+            # Nối quyết định gọi công cụ và kết quả vào lịch sử tin nhắn
+            tin_nhan.append(phan_hoi) 
+            tin_nhan.append(ToolMessage(content=ket_qua, tool_call_id=yeu_cau['id']))
+                
+            # Yêu cầu AI đọc kết quả và giao tiếp lại với người dùng
+            phan_hoi_cuoi_cung = llm_kem_cong_cu.invoke(tin_nhan)
+            print("Trợ lý AI:", phan_hoi_cuoi_cung.content)
 
     return EXIT_SUCCESS
 
