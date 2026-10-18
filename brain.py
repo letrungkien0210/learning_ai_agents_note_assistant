@@ -8,7 +8,7 @@ from langchain_google_genai.chat_models import ChatGoogleGenerativeAIError
 
 from quota_errors import describe_quota_error, is_quota_exhausted
 from settings import MissingApiKeyError, read_api_key, read_model_name
-from tools import them_ghi_chu
+from tools import them_ghi_chu, doc_ghi_chu
 
 EXIT_SUCCESS = 0
 EXIT_MISSING_API_KEY = 2
@@ -25,7 +25,7 @@ def build_agent(api_key: str, model_name: str):
     llm = ChatGoogleGenerativeAI(model=model_name, google_api_key=api_key)
 
     # 2. Kết nối công cụ với mô hình AI
-    danh_sach_cong_cu = [them_ghi_chu]
+    danh_sach_cong_cu = [them_ghi_chu, doc_ghi_chu]
     llm_kem_cong_cu = llm.bind_tools(danh_sach_cong_cu)
     return llm_kem_cong_cu
 
@@ -41,7 +41,7 @@ def main(environ: Mapping[str, str] = os.environ) -> int:
     llm_kem_cong_cu = build_agent(api_key=api_key, model_name=model_name)
 
     # 3. Tạo tin nhắn yêu cầu từ người dùng
-    tin_nhan = [HumanMessage(content="Nhắc tôi chiều nay đi siêu thị mua rau")]
+    tin_nhan = [HumanMessage(content="Hôm nay tôi có việc gì cần làm không?")]
 
     # 4. Yêu cầu Agent xử lý tin nhắn
     try:
@@ -52,24 +52,31 @@ def main(environ: Mapping[str, str] = os.environ) -> int:
             return EXIT_QUOTA_EXHAUSTED
         raise
 
+    # Nhớ thêm danh bạ này vào trước vòng lặp nhé:
+    danh_ba_cong_cu = {
+        "them_ghi_chu": them_ghi_chu,
+        "doc_ghi_chu": doc_ghi_chu
+    }
+
     # 5. Thực thi công cụ theo yêu cầu của AI
     print(phan_hoi.tool_calls)
     for yeu_cau in phan_hoi.tool_calls:
-        if yeu_cau['name'] == 'them_ghi_chu':
-            # Chạy công cụ với các tham số AI đã trích xuất
-            ket_qua = them_ghi_chu.invoke(yeu_cau['args'])
+        ten_cong_cu = yeu_cau['name']
+        
+        # Tra cứu trong danh bạ để lấy hàm công cụ ra
+        cong_cu_duoc_chon = danh_ba_cong_cu[ten_cong_cu];
 
-            # In kết quả trả về từ công cụ
-            print(f"Hệ thống báo: {ket_qua}")
+        ket_qua = cong_cu_duoc_chon.invoke(yeu_cau['args']);
+        print(f"Hệ thống báo: {ket_qua}")
 
-            # --- BƯỚC MỚI: HOÀN THIỆN VÒNG LẶP REACT ---
-            # Nối quyết định gọi công cụ và kết quả vào lịch sử tin nhắn
-            tin_nhan.append(phan_hoi) 
-            tin_nhan.append(ToolMessage(content=ket_qua, tool_call_id=yeu_cau['id']))
+        # --- BƯỚC MỚI: HOÀN THIỆN VÒNG LẶP REACT ---
+        # Nối quyết định gọi công cụ và kết quả vào lịch sử tin nhắn
+        tin_nhan.append(phan_hoi) 
+        tin_nhan.append(ToolMessage(content=ket_qua, tool_call_id=yeu_cau['id']))
             
-            # Yêu cầu AI đọc kết quả và giao tiếp lại với người dùng
-            phan_hoi_cuoi_cung = llm_kem_cong_cu.invoke(tin_nhan)
-            print("Trợ lý AI:", phan_hoi_cuoi_cung.content)
+        # Yêu cầu AI đọc kết quả và giao tiếp lại với người dùng
+        phan_hoi_cuoi_cung = llm_kem_cong_cu.invoke(tin_nhan)
+        print("Trợ lý AI:", phan_hoi_cuoi_cung.content)
 
     return EXIT_SUCCESS
 

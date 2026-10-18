@@ -14,3 +14,17 @@ def them_ghi_chu(noi_dung: str) -> str:
     
     # Trả về thông báo để Agent biết việc đã hoàn tất
     return "Đã lưu ghi chú thành công!"
+
+@tool
+def doc_ghi_chu() -> str:
+    """Đọc và trả về danh sách các công việc đã lưu."""
+    # Mở file ở chế độ 'r' (read - đọc)
+    with open('todo.txt', 'r', encoding='utf-8') as file:
+        # Lấy toàn bộ nội dung trong file ra
+        noi_dung = file.read()
+    
+    # Nếu file trống, báo cho AI biết
+    if not noi_dung:
+        return "Danh sách công việc đang trống."
+    
+    return noi_dung
