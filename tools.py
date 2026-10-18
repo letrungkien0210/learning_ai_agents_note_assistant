@@ -1,4 +1,7 @@
 from langchain_core.tools import tool
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import SystemMessage, HumanMessage
+import os
 
 @tool
 def them_ghi_chu(noi_dung: str) -> str:
@@ -31,11 +34,35 @@ def doc_ghi_chu() -> str:
 
 @tool
 def kiem_duyet_cong_viec(noi_dung: str) -> str:
-    """Kiểm duyệt và phân loại mức độ ưu tiên của công việc."""
-    noi_dung_lower = noi_dung.lower()
+    """Kiểm duyệt và phân loại mức độ ưu tiên của công việc bằng AI."""
+    # 1. Khởi tạo một LLM "Nhân viên" độc lập
+    # Lấy key từ biến môi trường (như cách PowerShell đã cài đặt)
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    llm_nhan_vien = ChatGoogleGenerativeAI(model="gemini-3.8-flash", google_api_key=api_key)
+    
+    # 2. Cấp cho nhân viên này một "Vai trò" (System Prompt)
+    huong_dan = """Bạn là một Chuyên gia Đánh giá Rủi ro và Quản lý Thời gian.
+    Nhiệm vụ của bạn là đọc nội dung công việc và quyết định mức độ ưu tiên.
+    
+    Quy tắc phân loại:
+    - Trả về CHÍNH XÁC chuỗi "[Khẩn cấp] 🚨" nếu công việc liên quan đến: sức khỏe, y tế (ví dụ: đau ốm, mua thuốc, tai nạn), thời hạn quá gấp, hoặc các tình huống bất thường vào ban đêm.
+    - Trả về CHÍNH XÁC chuỗi "[Bình thường] 🟢" cho các công việc sinh hoạt, mua sắm, làm việc thông thường.
+    
+    Tuyệt đối chỉ trả về đúng 1 trong 2 nhãn trên, không giải thích gì thêm."""
 
-    # Kiểm tra xem từ khóa có nằm trong nội dung không
-    if "gấp" in noi_dung_lower or "ngay" in noi_dung_lower or "chiều nay" in noi_dung_lower:
-        return "[Khẩn cấp] 🚨"
-    else:
-        return "[Bình thường] 🟢"
+    # 3. Giao tiếp với nhân viên
+    tin_nhan_cho_nhan_vien = [
+        SystemMessage(content=huong_dan),
+        HumanMessage(content=f"Nội dung công việc cần đánh giá: {noi_dung}")
+    ]
+
+    # 4. Nhân viên tự suy nghĩ và trả kết quả
+    phan_hoi = llm_nhan_vien.invoke(tin_nhan_cho_nhan_vien)
+
+    # Trả kết quả của nhân viên về cho Sếp (Router)
+    noi_dung_tra_loi = phan_hoi.content
+    if isinstance(noi_dung_tra_loi, list):
+        noi_dung_tra_loi = noi_dung_tra_loi[0]['text']
+
+    return noi_dung_tra_loi.strip()
+
