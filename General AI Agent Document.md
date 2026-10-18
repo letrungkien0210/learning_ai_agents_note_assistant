@@ -2,6 +2,8 @@
 
 Tài liệu này tổng hợp các kiến thức nền tảng và mã nguồn thực tế để xây dựng một **AI Agent** có khả năng quản lý ghi chú bằng Python, LangChain và Gemini API.
 
+> 🔗 **Mã nguồn tham khảo (Code Example Repository):** [learning_ai_agents_note_assistant](https://github.com/letrungkien0210/learning_ai_agents_note_assistant)
+
 ---
 
 ## 1. AI Agent là gì? 💡
@@ -36,6 +38,8 @@ Một AI Agent hoàn chỉnh được cấu tạo từ 3 bộ phận chính:
 ---
 
 ## 4. Mã Nguồn Thực Hành Hoàn Chỉnh 💻
+
+> 📦 **Repository mã nguồn đầy đủ:** <https://github.com/letrungkien0210/learning_ai_agents_note_assistant>
 
 Dự án của chúng ta gồm 2 file chính hoạt động cùng nhau:
 
